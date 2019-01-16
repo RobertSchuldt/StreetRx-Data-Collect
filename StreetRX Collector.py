@@ -16,7 +16,7 @@ import requests as rq
 import urllib.request
 import json as js
 import csv
-
+import pandas as pd
 
 #start by checking that the API is accesible
 streetrx = rq.get("https://streetrx.com/search.php")
@@ -61,8 +61,37 @@ print(type(data['markers']))
 for key,values in data.items():
     for k,v in values.items():
         for k1, v1 in v.items():
-            keys= v.keys()
-            print(keys)
+            print(k1, v1)
+        
+                    
+'''
+Now that I have grabbed my list of dictionaries that I wish to export
+I can export the list of dictionaries to a csv file
+'''
+
+
+#create the file to write to
+street_rx_data = open('C:\\Users\\3043340\\Documents\\Street RX\\streetrx_prices.csv', 'w')
+
+with street_rx_data as output_file:
+    for key, values in data.items():
+        for k,v in values.items():
+            for k1, v1 in v.items():
+                keys=v['quote'].keys() 
+                w= csv.DictWriter(output_file, keys)
+                w.writeheader()
+                w.writerows(prices)
+                
+street_df = pd.DataFrame()
+for i in values:
+    df=pd.DataFrame([i]).T
+    street_df= pd.concat([street_df, df], axis = 1)
+    
+print(data['markers'][114])
+    
+
+            
+
             
 '''
 Now I want to write this data into a CSV that I can analyze. I want to set
@@ -71,7 +100,7 @@ coming months but we will just do a single push to test the feasibility
 '''
 
 #create the file to write to
-street_rx_data = open('C:\\Users\\3043340\\Documents\\Street RX\\streetrx_1.csv', 'w')
+street_rx_data = open('C:\\Users\\3043340\\Documents\\Street RX\\streetrx_prices.csv', 'w')
 
 #now I create my writer
 with street_rx_data as f:
