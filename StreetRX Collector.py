@@ -5,113 +5,80 @@ Created on Tue Jan 15 09:43:14 2019
 @author: Robert Schuldt
 @Email: rfschuldt@uams.edu
 
-
 Street RX is a website dedicated to allowing people to post the prices of their
 drugs that they purchased. I would like to be able to grab their exposed JSON 
 data to see if I can track prices for opioids to get a better idea of the street
 price of these drugs across the country. Possibly target spots that are going
 to see higher demand for heroin b/c of higher opioid pill prices. 
 """
-import requests as rq
-import urllib.request
-import json as js
+import requests
+import json
 import csv
-import pandas as pd
-
-#start by checking that the API is accesible
-streetrx = rq.get("https://streetrx.com/search.php")
-
-print(streetrx.status_code)
-
-## we get status code 200 should all should be well. Now we need to  just do a 
-#test to see if we can pull in some data
-
-
-print(streetrx.content)
-
-'''
-Now that I know I can grab some content it is time to convert this chunk of
-JSON into something I can actually interpret. I will be attempting to create
-a program that can run in regular intervals to download this data and store
-the information as they only keep information in 2 week intervals on this site
-'''
-
-url = "https://streetrx.com/search.php"
-x = urllib.request.urlopen(url)
-street_data = x.read()
-
-encoding = x.info().get_content_charset('utf8')
-#The above is JSON default
-
-print(street_data)
-
-data = js.loads(street_data.decode(encoding))
-print(data)
-
-
-
-del data['allProductMatches']
-del data['point']
-del data['productMatches']
-del data[ 'quoteTable']
-del data[ 'subsetProductMatches']
-
-print(type(data['markers']))
-
-for key,values in data.items():
-    for k,v in values.items():
-        for k1, v1 in v.items():
-            print(k1, v1)
-        
-                    
-'''
-Now that I have grabbed my list of dictionaries that I wish to export
-I can export the list of dictionaries to a csv file
-'''
-
-
-#create the file to write to
-street_rx_data = open('C:\\Users\\3043340\\Documents\\Street RX\\streetrx_prices.csv', 'w')
-
-with street_rx_data as output_file:
-    for key, values in data.items():
-        for k,v in values.items():
-            for k1, v1 in v.items():
-                keys=v['quote'].keys() 
-                w= csv.DictWriter(output_file, keys)
-                w.writeheader()
-                w.writerows(prices)
-                
-street_df = pd.DataFrame()
-for i in values:
-    df=pd.DataFrame([i]).T
-    street_df= pd.concat([street_df, df], axis = 1)
-    
-print(data['markers'][114])
-    
-
+from pprint import pprint
+ 
+# attempt to get most recent 2 weeks of data
+streetrx = requests.get("https://streetrx.com/search.php")
+ 
+# check the status code of the request
+if (streetrx.status_code != 200):
+    print('streetRx currently unavailable')
+    quit()
+ 
+# save the data using requests built in json converter
+data = streetrx.json()
+ 
+# remove unwanted keys
+removableKeys = ['allProductMatches', 'point', 'productMatches', 'quoteTable', 'subsetProductMatches']
+for key in removableKeys:
+    data.pop(key)
+ 
+# uncomment the below if you'd like to see the data in the command line
+pprint(data)
+ 
+# create new CSV file for writing
+# newline='' is required so a blank row isn't inserted
+# between each entry
+street_rx_data = open('C:\\Users\\3043340\\Documents\\Street RX\\streetrx.csv', 'w', newline='')
+ 
+with street_rx_data as file:
+    # here's the columns we're interested in
+    columns = ['date', 'place_name', 'product_name', 'price', 'unit', 'quote_id']
+    # set these as our columns and write the header row
+    w = csv.DictWriter(file, columns)
+    w.writeheader()
+    # each index (?) for the data, to get past the 1st layer
+    # i'm not sure what the number means, probably some sort
+    # of internal id that we don't need to worry about.
+    for item in data.values():
+        # each one is unique to a location however, so we get the object
+        # stored within each one of those for processing.
+        for location_data in item.values():
+            place_name = location_data['place_name']
+            # each location has multiple quotes for different
+            # substances. we can set the place_name initially
+            # then loop through each quote belonging to that
+            # place.
+            for quote in location_data['quote']:
+                # replace an html tag that's in the date
+                # with a comma (bad design by streetrx)
+                date         = quote['date'].replace('<br />', ', ')
+                # then just copy over the rest of the fields
+                product_name = quote['product_name']
+                price        = quote['price']
+                unit         = quote['unit']
+                quote_id     = quote['quote_id']
+                # write the row
+                # note: it's able to place each item under the correct
+                #       column due to setting the column names earlier.
+                #       it uses the object key to map to the correct
+                #       column.
+                w.writerow({
+                    'date': date,
+                    'place_name': place_name,
+                    'product_name': product_name,
+                    'price': price,
+                    'unit': unit,
+                    'quote_id': quote_id})
             
 
-            
-'''
-Now I want to write this data into a CSV that I can analyze. I want to set
-this program up to eventually auto push into the CSV file the new data over the
-coming months but we will just do a single push to test the feasibility
-'''
-
-#create the file to write to
-street_rx_data = open('C:\\Users\\3043340\\Documents\\Street RX\\streetrx_prices.csv', 'w')
-
-#now I create my writer
-with street_rx_data as f:
-    for key,values in data.items():
-        for k,v in values.items():
-            for k1, v1 in v.items():
-                w = csv.DictWriter(f, v.keys())
-                w.writeheader()
-                w.writerow(v)
-                 
-                 
-    
-    
-    
+      
